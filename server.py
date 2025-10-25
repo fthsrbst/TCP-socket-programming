@@ -1,6 +1,13 @@
+
 #TCP soket kütüphanesi import ediyoruz
 import socket
 import sys
+from rich.console import Console
+from rich.table import Table
+from rich.panel import Panel
+
+console = Console()
+messages = []
 
 #socket değişkeni yaratılıyor
 s = socket.socket()
@@ -20,13 +27,23 @@ try:
     while True:
         c, addr = s.accept()
         print("Got connection from", addr)
-
-        
         c.send("Thank you for connecting".encode())
-        c.close
+        
+        print("------------Welcome to TCP Chat------------")
+
+        while True:
+            data = c.recv(1024)
+            print("Client : ",data.decode())
+
+            while True:
+                message = input("Server : ")
+                c.send(message.encode())
+
+
 except KeyboardInterrupt:
     print("Server interrupted, shutting down.")
 finally:
+    c.close
     s.close
 
     
