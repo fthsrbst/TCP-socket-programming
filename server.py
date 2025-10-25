@@ -4,66 +4,119 @@ import socket
 import sys
 import select
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
+from rich.table import Table
+from rich import box
 
 console = Console()
-messages = []
+
+# Başlık
+console.clear()
+console.print()
+console.print("[bold red]" + "─" * 70 + "[/bold red]")
+console.print()
+
+ascii_title = """
+[bold red]███████╗███████╗██████╗ ██╗   ██╗███████╗██████╗ 
+██╔════╝██╔════╝██╔══██╗██║   ██║██╔════╝██╔══██╗
+███████╗█████╗  ██████╔╝██║   ██║█████╗  ██████╔╝
+╚════██║██╔══╝  ██╔══██╗╚██╗ ██╔╝██╔══╝  ██╔══██╗
+███████║███████╗██║  ██║ ╚████╔╝ ███████╗██║  ██║[/bold red]
+"""
+console.print(ascii_title)
+console.print("[dim]TCP Socket Server - Real-time Communication Tool[/dim]")
+console.print()
+console.print("[bold red]" + "─" * 70 + "[/bold red]")
+console.print()
 
 #socket değişkeni yaratılıyor
 s = socket.socket()
-print("Socket succesfully created.")
+# SO_REUSEADDR: Portu hemen yeniden kullanabilmemizi sağlar
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+console.print("  [green]●[/green] Socket oluşturuldu")
 
-#dinlenecek port numarası 8080 olarak belirliyoruz.
-port = 9999
+#dinlenecek port numarası 9998 olarak belirliyoruz.
+port = 9998
 
 #soketi yerel IP ve Porta bağla. '' parametresi tüm ağ arayüzlerini temsil eder (0.0.0.0)
 s.bind(('',port))
-print ("Socket binded to %s" %(port)) 
+console.print(f"  [green]●[/green] Port bağlandı: [cyan]{port}[/cyan]")
 
 #dinleme modu
 s.listen(5) #buradaki 5 backlog yani bağlantı kuyruğunun maksimum uzunluğu
-print("Socket is listening")
+console.print("  [yellow]●[/yellow] Dinleme modunda...")
+console.print()
+
+# Bağlantı bekleniyor paneli
+waiting_panel = Panel(
+    "[yellow]Client bağlantısı bekleniyor...[/yellow]",
+    title="[bold]Durum[/bold]",
+    border_style="yellow",
+    box=box.ROUNDED
+)
+console.print(waiting_panel)
+
 try:
     c, addr = s.accept()
-    print("Got connection from", addr)
-    c.send("Thank you for connecting".encode())
-    print("------------Welcome to TCP Chat------------")
-    print("Server : ", end="", flush=True)
+    console.print()
+    
+    # Bağlantı bilgisi paneli
+    connection_panel = Panel(
+        f"[green]✓ Bağlantı başarılı[/green]\n[dim]IP:[/dim] [cyan]{addr[0]}[/cyan]\n[dim]Port:[/dim] [cyan]{addr[1]}[/cyan]",
+        title="[bold]Bağlantı[/bold]",
+        border_style="green",
+        box=box.ROUNDED
+    )
+    console.print(connection_panel)
+    
+    c.send("Bağlandığınız için teşekkürler".encode())
+    
+    # Bilgi paneli
+    info_panel = Panel(
+        "[yellow]• Mesaj göndermek için yazıp Enter'a basın\n• Çıkmak için 'quit' yazın[/yellow]",
+        title="[bold]Bilgi[/bold]",
+        border_style="blue",
+        box=box.ROUNDED
+    )
+    console.print(info_panel)
+    console.print("─" * 50)
+    console.print()
 
     inputs = [c, sys.stdin]  # soket + klavye
+    console.print("[bold magenta]Server:[/bold magenta] ", end="")
+    
     while True:
         readable, _, _ = select.select(inputs, [], [])
         for r in readable:
             if r is c:
                 data = c.recv(4096)
                 if not data:
-                    print("\nClient disconnected.")
+                    console.print("\n[red]✗ Client bağlantısı kesildi.[/red]")
                     raise SystemExit
                 msg = data.decode().rstrip("\n")
                 # Alınan mesaj, mevcut promptu bozmadan yazılsın
-                print(f"\rClient : {msg}\nServer : ", end="", flush=True)
+                console.print(f"\r[bold green]Client:[/bold green] {msg}")
+                console.print("[bold magenta]Server:[/bold magenta] ", end="")
                 if msg.strip().lower() == "quit":
-                    print("\nClient ended the chat.")
+                    console.print("\n[yellow]Client sohbeti sonlandırdı.[/yellow]")
                     raise SystemExit
             else:  # sys.stdin
                 line = sys.stdin.readline()
                 if not line:
                     continue
                 msg = line.rstrip("\n")
-                c.send((msg + "\n").encode())
-                if msg.strip().lower() == "quit":
-                    print("\nYou ended the chat.")
-                    raise SystemExit
+                if msg.strip():  # Boş mesaj gönderme
+                    c.send((msg + "\n").encode())
+                    if msg.strip().lower() == "quit":
+                        console.print("\n[yellow]Sohbet sonlandırıldı.[/yellow]")
+                        raise SystemExit
                 # tekrar prompt göster
-                print("Server : ", end="", flush=True)
+                console.print("[bold magenta]Server:[/bold magenta] ", end="")
 
 
 
 except KeyboardInterrupt:
-    print("Server interrupted, shutting down.")
+    console.print("\n[red]⚠ Server kesildi, kapatılıyor.[/red]")
 finally:
-    c.close
-    s.close
-
-    
+    c.close()
+    s.close()
